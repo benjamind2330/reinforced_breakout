@@ -9,11 +9,10 @@ def intersects(a, b) -> bool:
 
 @intersects.register
 def _(a: circle, b: aabb) -> bool:
-    closest_x = max(b.min.x, min(a.center.x, b.max.x))
-    closest_y = max(b.min.y, min(a.center.y, b.max.y))
-    distance_x = a.center.x - closest_x
-    distance_y = a.center.y - closest_y
-    return (distance_x**2 + distance_y**2) < (a.radius**2)
+    closest = b.closest_point(a.center)
+    distance_x = a.center.x - closest.x
+    distance_y = a.center.y - closest.y
+    return (distance_x**2 + distance_y**2) < (a.radius**2) or b.contains(a.center)
 
 @intersects.register
 def _(a: aabb, b: circle) -> bool:

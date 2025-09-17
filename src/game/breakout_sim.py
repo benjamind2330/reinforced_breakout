@@ -76,17 +76,10 @@ class breakout_sim:
         # Update ball position
         self.ball.update(dt)
 
-        # Check for wall collisions
-        if self.ball.position.x - self.ball.radius < 0 or self.ball.position.x + self.ball.radius > self.size.x:
-            self.ball.velocity.x *= -1  # Bounce off left/right walls
-        if self.ball.position.y - self.ball.radius < 0:
-            self.ball.velocity.y *= -1  # Bounce off top wall
-        if self.ball.position.y + self.ball.radius > self.size.y:
-            self.win_state = WinState.LOST  # Ball fell below paddle
-
         # Check for paddle collision
         if intersects(self.ball.shape, self.paddle.aabb()):
             normal = vec2(0, -1)  # Normal pointing upwards
+            self.ball.position.y = self.paddle.aabb().min.y - self.ball.radius - 1
             self.ball.bounce(normal)
 
         # Check for brick collisions
@@ -95,5 +88,13 @@ class breakout_sim:
                 normal = brick.hit(self.ball.position)
                 self.ball.bounce(normal)
                 break  # Only handle one brick collision per step
+
+        # Check for wall collisions
+        if self.ball.position.x - self.ball.radius < 0 or self.ball.position.x + self.ball.radius > self.size.x:
+            self.ball.velocity.x *= -1  # Bounce off left/right walls
+        if self.ball.position.y - self.ball.radius < 0:
+            self.ball.velocity.y *= -1  # Bounce off top wall
+        if self.ball.position.y + self.ball.radius > self.size.y:
+            self.win_state = WinState.LOST  # Ball fell below paddle
 
         return self.game_state()

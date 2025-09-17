@@ -34,6 +34,11 @@ class breakout_display:
     def _scale_pos(self, v: vec2) -> tuple[int, int]:
         return int(v.x * self.scale), int(v.y * self.scale)
 
+    def _draw_aabb(self, box, color):
+        if not pygame:
+            return
+        self._draw_rect(box.min, box.max - box.min, color)
+
     def _draw_rect(self, top_left: vec2, size: vec2, color):
         if not pygame:
             return
@@ -55,12 +60,6 @@ class breakout_display:
         if hasattr(pos, "min") and hasattr(pos, "max"):
             return pos.min
         return pos  # assume vec2 top-left
-
-    def _paddle_top_left(self):
-        ppos = self.game.paddle.position
-        if hasattr(ppos, "min"):
-            return ppos.min
-        return ppos  # assume vec2 top-left
 
     # ------------- public API -------------
     def poll_input(self) -> Optional[paddle_move]:
@@ -99,8 +98,7 @@ class breakout_display:
             self._draw_rect(top_left, self.game.brick_size, color)
 
         # Draw paddle
-        paddle_tl = self._paddle_top_left()
-        self._draw_rect(paddle_tl, self.game.paddle_size, self.colors["paddle"])
+        self._draw_aabb(self.game.paddle.aabb(), self.colors["paddle"])
 
         # Draw ball
         ball_obj = gs.ball

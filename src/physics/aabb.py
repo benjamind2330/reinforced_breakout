@@ -8,6 +8,10 @@ class aabb:
     def __repr__(self):
         return f"aabb(min={self.min}, max={self.max})"
 
+    def contains(self, point: vec2) -> bool:
+        """Check if the AABB contains the given point."""
+        return (self.min.x <= point.x <= self.max.x) and (self.min.y <= point.y <= self.max.y)
+
     def closest_point(self, point: vec2) -> vec2:
         """Return the closest point on the AABB to the given point."""
         clamped_x = max(self.min.x, min(point.x, self.max.x))

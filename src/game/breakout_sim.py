@@ -1,9 +1,9 @@
-
 from .ball import ball
 from .paddle import paddle
 from .brick import brick
 from physics.intersections import intersects
 from physics.vec2 import vec2
+from physics.aabb import aabb
 from enum import Enum
 
 class paddle_move(Enum):
@@ -29,25 +29,39 @@ class GameState:
 
 
 class breakout_sim:
-    def __init__(self, size: vec2, brick_rows: int, brick_size: vec2, paddle_size: vec2, ball_radius: float, paddle_vel: float):
+    def __init__(self, size: vec2, brick_rows: int, brick_size: vec2, paddle_size: vec2, ball_radius: float, paddle_vel: float,
+                 ball_initial_velocity: vec2 | None = None):
         self.size = size
         self.brick_rows = brick_rows
         self.brick_size = brick_size
         self.paddle_size = paddle_size
         self.ball_radius = ball_radius
         self.paddle_vel = paddle_vel
+        self.ball_initial_velocity = ball_initial_velocity or vec2(160, -200)
         self.win_state = WinState.ONGOING
-
         self.reset()
 
     def reset(self):
-        self.ball = ball(position=vec2(self.size.x / 2, self.size.y / 2), radius=self.ball_radius)
-        self.paddle = paddle(position=vec2(self.size.x / 2 - self.paddle_size.x / 2, self.size.y - self.paddle_size.y))
-        self.bricks = [
-            brick(position=vec2(col * self.brick_size.x, row * self.brick_size.y))
-            for row in range(self.brick_rows)
-            for col in range(self.size.x // self.brick_size.x)
-        ]
+        # Center ball
+        self.ball = ball(
+            position=vec2(self.size.x / 2, self.size.y / 2),
+            velocity=self.ball_initial_velocity,
+            radius=self.ball_radius
+        )
+
+        paddle_centre = vec2(self.size.x / 2, self.size.y - self.paddle_size.y)
+        self.paddle = paddle(position=paddle_centre, length=self.paddle_size.x, height=self.paddle_size.y)
+        # Bricks laid out in grid
+        top_offset = 20  # small gap from the top
+        cols = int(self.size.x // self.brick_size.x)
+        self.bricks = []
+        for row in range(self.brick_rows):
+            for col in range(cols):
+                x0 = col * self.brick_size.x
+                y0 = top_offset + row * self.brick_size.y
+                x1 = x0 + self.brick_size.x
+                y1 = y0 + self.brick_size.y
+                self.bricks.append(brick(box=aabb(vec2(x0, y0), vec2(x1, y1))))
 
     def game_state(self) -> GameState:
         return GameState(ball=self.ball, paddle=self.paddle, bricks=self.bricks, win_state=self.win_state)
@@ -71,13 +85,13 @@ class breakout_sim:
             self.win_state = WinState.LOST  # Ball fell below paddle
 
         # Check for paddle collision
-        if intersects(self.ball.shape, self.paddle.position):
+        if intersects(self.ball.shape, self.paddle.aabb()):
             normal = vec2(0, -1)  # Normal pointing upwards
             self.ball.bounce(normal)
 
         # Check for brick collisions
         for brick in self.bricks:
-            if brick.alive and intersects(self.ball.shape, brick.position):
+            if brick.alive and intersects(self.ball.shape, brick.box):
                 normal = brick.hit(self.ball.position)
                 self.ball.bounce(normal)
                 break  # Only handle one brick collision per step

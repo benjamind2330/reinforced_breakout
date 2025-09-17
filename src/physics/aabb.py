@@ -1,9 +1,9 @@
 from .vec2 import vec2
 
 class aabb:
-    def __init__(self, min_point: vec2, max_point: vec2):
-        self.min = min_point
-        self.max = max_point
+    def __init__(self, min: vec2, max: vec2):
+        self.min = min
+        self.max = max
 
     def __repr__(self):
         return f"aabb(min={self.min}, max={self.max})"

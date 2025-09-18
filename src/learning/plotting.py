@@ -2,41 +2,61 @@ import matplotlib.pyplot as plt
 
 class plotter:
     def __init__(self):
-        self.scores = []
+        self.percentages = []
+        self.times = []
         self.mean_scores = []
 
     def add_score(self, score):
-        self.scores.append(score)
+        self.percentages.append(score.percentage_broken)
+        self.times.append(score.time)
 
     def plot(self):
-
-        self.percentages = [score.percentage_broken for score in self.scores]
-        self.times = [score.time for score in self.scores]
-
-        plt.clf()
-        fig, ax1 = plt.subplots()
+        if not self.percentages or not self.times:
+            return
 
         x = range(1, len(self.percentages) + 1)
 
-        color_left = 'tab:blue'
-        color_right = 'tab:orange'
+        # First time: create figure and lines
+        if not hasattr(self, "_plot_initialized"):
+            plt.ion()
+            self.fig, self.ax1 = plt.subplots()
+            self.ax2 = self.ax1.twinx()
 
-        line1 = ax1.plot(x, self.percentages, color=color_left, label='Percentage Broken')
-        ax1.set_xlabel('Number of Games')
-        ax1.set_ylabel('Percentage Broken (%)', color=color_left)
-        ax1.tick_params(axis='y', labelcolor=color_left)
-        ax1.set_ylim(0, 100)
+            color_left = 'tab:blue'
+            color_right = 'tab:orange'
 
-        ax2 = ax1.twinx()
-        line2 = ax2.plot(x, self.times, color=color_right, label='Time (s)')
-        ax2.set_ylabel('Time (s)', color=color_right)
-        ax2.tick_params(axis='y', labelcolor=color_right)
-        ax2.set_ylim(bottom=0)
+            (self.line_percentages,) = self.ax1.plot(x, self.percentages, color=color_left, label='Percentage Broken')
+            (self.line_times,) = self.ax2.plot(x, self.times, color=color_right, label='Time (s)')
 
-        lines = line1 + line2
-        labels = [l.get_label() for l in lines]
-        ax1.legend(lines, labels, loc='upper left')
+            self.ax1.set_xlabel('Number of Games')
+            self.ax1.set_ylabel('Percentage Broken (%)', color='tab:blue')
+            self.ax1.tick_params(axis='y', labelcolor='tab:blue')
+            self.ax1.set_ylim(0, 100)
 
-        plt.title('Training Progress')
-        plt.tight_layout()
-        plt.pause(0.1)
+            self.ax2.set_ylabel('Time (s)', color='tab:orange')
+            self.ax2.tick_params(axis='y', labelcolor='tab:orange')
+            self.ax2.set_ylim(bottom=0, top=max(self.times) * 1.1 if self.times else 1)
+
+            lines = [self.line_percentages, self.line_times]
+            labels = [l.get_label() for l in lines]
+            self.ax1.legend(lines, labels, loc='upper left')
+
+            self.fig.suptitle('Training Progress')
+            self.fig.tight_layout()
+            self._plot_initialized = True
+        else:
+            # Update existing lines
+            self.line_percentages.set_data(x, self.percentages)
+            self.line_times.set_data(x, self.times)
+
+            # Update limits
+            self.ax1.set_xlim(1, len(self.percentages))
+            # y-limits: keep 0-100 for percentages, autoscale time axis
+            self.ax2.set_ylim(bottom=0, top=max(self.times) * 1.1 if self.times else 1)
+            self.ax2.autoscale_view()
+
+
+        # Redraw
+        self.fig.canvas.draw_idle()
+        self.fig.canvas.flush_events()
+        plt.pause(0.001)

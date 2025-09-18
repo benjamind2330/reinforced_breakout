@@ -30,6 +30,9 @@ class breakout_display:
             "text": (240, 240, 240),
         }
 
+    def reset(self, new_game: breakout_sim):
+        self.game = new_game
+
     # ------------- helpers -------------
     def _scale_pos(self, v: vec2) -> tuple[int, int]:
         return int(v.x * self.scale), int(v.y * self.scale)

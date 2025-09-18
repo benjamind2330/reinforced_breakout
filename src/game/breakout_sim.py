@@ -18,15 +18,24 @@ class WinState(Enum):
 
 class GameState:
 
-    def __init__(self, ball: ball, paddle: paddle, bricks: list[brick], win_state: WinState):
+    def __init__(self, ball: ball, paddle: paddle, bricks: list[brick], win_state: WinState, game_time: float):
         self.ball = ball
         self.paddle = paddle
         self.bricks = bricks
         self.win_state = win_state
+        self.game_time = game_time
     
     def __repr__(self):
         return f"GameState(win_state={self.win_state}, num_bricks_left={sum(b.alive for b in self.bricks)})"
 
+    def num_bricks_left(self) -> int:
+        return sum(b.alive for b in self.bricks)
+    
+    def num_bricks_total(self) -> int:
+        return len(self.bricks)
+    
+    def num_bricks_broken(self) -> int:
+        return sum(not b.alive for b in self.bricks)
 
 class breakout_sim:
     def __init__(self, size: vec2, brick_rows: int, brick_size: vec2, paddle_size: vec2, ball_radius: float, paddle_vel: float,
@@ -39,10 +48,9 @@ class breakout_sim:
         self.paddle_vel = paddle_vel
         self.ball_initial_velocity = ball_initial_velocity or vec2(160, -200)
         self.win_state = WinState.ONGOING
-        self.reset()
-
-    def reset(self):
-        # Center ball
+        self.game_time = 0.0
+        
+                # Center ball
         self.ball = ball(
             position=vec2(self.size.x / 2, self.size.y / 2),
             velocity=self.ball_initial_velocity,
@@ -63,15 +71,17 @@ class breakout_sim:
                 y1 = y0 + self.brick_size.y
                 self.bricks.append(brick(box=aabb(vec2(x0, y0), vec2(x1, y1))))
 
+
     def game_state(self) -> GameState:
-        return GameState(ball=self.ball, paddle=self.paddle, bricks=self.bricks, win_state=self.win_state)
+        return GameState(ball=self.ball, paddle=self.paddle, bricks=self.bricks, win_state=self.win_state, game_time=self.game_time)
 
     def step(self, dt: float, paddle_action: paddle_move) -> GameState:
+        self.game_time += dt
         # Move paddle
         if paddle_action == paddle_move.LEFT:
-            self.paddle.move(-self.paddle_vel * dt)
+            self.paddle.move(-self.paddle_vel * dt, vec2(0, self.size.x))
         elif paddle_action == paddle_move.RIGHT:
-            self.paddle.move(self.paddle_vel * dt)
+            self.paddle.move(self.paddle_vel * dt, vec2(0, self.size.x))
 
         # Update ball position
         self.ball.update(dt)

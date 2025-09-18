@@ -1,4 +1,4 @@
-from .model import Linear_QNet, QTrainer
+from .model import Linear_QNet, QTrainer, RUN_DEVICE
 from .plotting import plotter
 
 import torch
@@ -8,16 +8,18 @@ from collections import deque
 from game.breakout_sim import breakout_sim, paddle_move, WinState, GameState
 from game.constants import *
 from time import time
+from datetime import timedelta
 
 MAX_MEMORY = 100_000
+SHORT_BATCH_SIZE = 10
 BATCH_SIZE = 1000
 LR = 0.001
 MAX_GAME_TIME = 300.0  # seconds
 HIDDEN_NODES = 256
 DISCOUNT_FACTOR = 0.9
 DISPLAY_RENDER_DT = 1.0 / 30.0  # seconds
-NUM_EPISODES = 1000
-EPISODES_FOR_EXPLORATION = 20
+NUM_EPISODES = 10
+EPISODES_FOR_EXPLORATION = 1
 
 class Agent:
     def __init__(self):
@@ -29,6 +31,8 @@ class Agent:
         self.model = Linear_QNet(input_size=5 + BRICK_ROWS * (SCREEN_SIZE.x // BRICK_SIZE.x), hidden_size=HIDDEN_NODES, output_size=3)
         self.model.load()  # load existing model if available
         self.trainer = QTrainer(model=self.model, lr=LR, gamma=self.gamma)
+        self._device = RUN_DEVICE
+        self.short_mem = []
 
     def remember(self, state: np.ndarray, action: float, reward: float, next_state: np.ndarray, done: bool):
         self.memory.append((state, action, reward, next_state, done))
@@ -43,10 +47,14 @@ class Agent:
         self.trainer.train_step(states, actions, rewards, next_states, dones)
 
     def train_short_memory(self, state: np.ndarray, action: float, reward: float, next_state: np.ndarray, done: bool):
-        self.trainer.train_step(state, action, reward, next_state, done)
+        self.short_mem.append((state, action, reward, next_state, done))
+        if len(self.short_mem) >= SHORT_BATCH_SIZE or done:
+            states, actions, rewards, next_states, dones = zip(*self.short_mem)
+            self.trainer.train_step(states, actions, rewards, next_states, dones)
+            self.short_mem.clear()
 
     def get_action(self, state: np.ndarray, game_state: GameState) -> np.ndarray:
-        self.epsilon = 80 - self.n_games
+        self.epsilon = EPISODES_FOR_EXPLORATION - self.n_games
         move = [0, 0, 0]
         if random.randint(0, 200) < self.epsilon:
             # move the paddle towards the ball
@@ -59,7 +67,7 @@ class Agent:
             else:
                 move[1] = 1  # stay
         else:
-            state0 = torch.tensor(state, dtype=torch.float)
+            state0 = torch.tensor(state, dtype=torch.float, device=self._device)
             prediction = self.model(state0)
             move_index = torch.argmax(prediction).item()
             move[move_index] = 1
@@ -129,6 +137,7 @@ def train(use_display: bool = False):
     record = score()
     agent = Agent()
     game = make_game()
+    start_time = time()
     next_display_time = time() + DISPLAY_RENDER_DT
     if use_display:
         from display.display import breakout_display
@@ -176,10 +185,16 @@ def train(use_display: bool = False):
 
             new_score = score(state_new)
             if new_score > record:
+                print("\nNew Record!")
                 agent.model.save()
                 record = new_score
 
-            print(f'Game {agent.n_games} Result: {state_new.win_state} {new_score}, Record: {record}')
+            elapsed_time = time() - start_time
+            time_p_run = elapsed_time / agent.n_games
+            estimated_total_time = time_p_run * NUM_EPISODES
+            remaining_time = estimated_total_time - elapsed_time
+
+            print(f'({timedelta(seconds=int(elapsed_time))}: Rem: {timedelta(seconds=int(remaining_time))}: Avg {time_p_run}s) Game {agent.n_games} Result: {state_new.win_state} {new_score}, Record: {record}')
             a_plotter.add_score(new_score)
             a_plotter.plot()
 

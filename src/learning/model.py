@@ -5,11 +5,16 @@ import torch.nn.functional as F
 import numpy as np
 import os
 
+DEVICE_NAME = 'cuda'
+RUN_DEVICE = torch.device(DEVICE_NAME)
+
 class Linear_QNet(nn.Module):
     def __init__(self, input_size: int, hidden_size: int, output_size: int):
         super(Linear_QNet, self).__init__()
-        self.linear1 = nn.Linear(input_size, hidden_size)
-        self.linear2 = nn.Linear(hidden_size, output_size)
+        self._device = RUN_DEVICE
+        self.linear1 = nn.Linear(input_size, hidden_size, device=self._device)
+        self.linear2 = nn.Linear(hidden_size, output_size, device=self._device)
+        print("Model using device:", self._device)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = F.relu(self.linear1(x))
@@ -40,12 +45,14 @@ class QTrainer:
         self.model = model
         self.optimizer = optim.Adam(model.parameters(), lr=self.lr)
         self.criterion = nn.MSELoss()
+        self._device = RUN_DEVICE
+        print("Trainer using device:", self._device)
 
     def train_step(self, state, action, reward, next_state, done):
-        state = torch.tensor(np.array(state), dtype=torch.float)
-        next_state = torch.tensor(np.array(next_state), dtype=torch.float)
-        action = torch.tensor(np.array(action), dtype=torch.long)
-        reward = torch.tensor(np.array(reward), dtype=torch.float)
+        state = torch.tensor(np.array(state), dtype=torch.float, device=self._device)
+        next_state = torch.tensor(np.array(next_state), dtype=torch.float, device=self._device)
+        action = torch.tensor(np.array(action), dtype=torch.long, device=self._device)
+        reward = torch.tensor(np.array(reward), dtype=torch.float, device=self._device)
 
         if len(state.shape) == 1:
             # reshape for a single sample
